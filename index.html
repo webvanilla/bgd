@@ -103,6 +103,8 @@
       }
       /* Ancient scroll style */
       .scroll {
+        /* Parchment‑like background – keep the existing texture but add a subtle
+           sepia overlay to emulate the vintage look from the reference image. */
         background-image: url('filing_cabinet/textures/Paper_baseColor.jpeg');
         background-size: cover;
         background-position: center;
@@ -110,9 +112,40 @@
         font-family: "Palatino Linotype", "Book Antiqua", Palatino, serif;
         font-size: 1.1rem;
         color: #3b2e1a;
-        border: 4px double #a67c52;
-        border-radius: 0;
-        box-shadow: inset 0 0 10px rgba(0,0,0,0.2);
+        border: 6px double #a67c52;
+        border-radius: 4px;
+        box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+        background-color: #fdf6e3;
+        /* Slightly aged parchment effect */
+        filter: sepia(0.2) contrast(1.05);
+      }
+
+      /* Responsive typography for mobile devices – ensure text isn’t too small. */
+      @media (max-width: 600px) {
+        .scroll {
+          font-size: 1.3rem;
+        }
+        .typewriter {
+          font-size: 1.3rem;
+        }
+        .close-doc {
+          font-size: 1rem;
+        }
+      }
+          @media (max-width: 600px) {
+        .scroll {
+          font-size: 1.3rem;
+        }
+        .typewriter {
+          font-size: 1.3rem;
+        }
+        .close-doc {
+          font-size: 1rem;
+        }
+        .doc {
+          padding: 20px 20px 20px 30px;
+          max-width: 95vw;
+        }
       }
     </style>
   </head>
@@ -121,3 +154,4 @@
     <script type="module" src="/main.js"></script>
   </body>
 </html>
+  
