@@ -154,7 +154,15 @@ const mouse = new THREE.Vector2();
 // Click handler
 // -------------------------
 
+/**
+ * Handle click/tap events on the canvas.
+ * This function works for both mouse clicks and touch taps.
+ */
 function handleOnClick(event) {
+    // Normalize touch events to have clientX/Y like mouse events.
+    if (event.touches && event.touches.length) {
+        event = event.touches[0];
+    }
 
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
@@ -169,28 +177,20 @@ function handleOnClick(event) {
 
     // Find the drawer that contains the clicked object
     let drawer = clickedObject;
-
     while (drawer && !drawers.includes(drawer)) {
         drawer = drawer.parent;
     }
-
     if (!drawer) return;
 
     const state = drawerStates[drawer.name];
-
-    // Toggle drawer
+    // Toggle drawer open state
     state.open = !state.open;
-
     if (state.open) {
-        // Open this drawer – defer showing the document until the drawer finishes opening
         cameraFocusDrawer = drawer;
         pendingDocumentName = drawer.name;
     } else {
-        // Close drawer: hide overlay (if any) and possibly focus another open drawer
         hideOverlay();
-        const anotherOpenDrawer = drawers.find(
-            d => drawerStates[d.name].open
-        );
+        const anotherOpenDrawer = drawers.find(d => drawerStates[d.name].open);
         cameraFocusDrawer = anotherOpenDrawer || null;
     }
 }
@@ -329,10 +329,13 @@ renderer.setAnimationLoop(animate);
 // Events
 // -------------------------
 
-window.addEventListener(
-    'click',
-    handleOnClick
-);
+// Support both mouse clicks and touch taps for drawer interaction.
+window.addEventListener('click', handleOnClick);
+window.addEventListener('touchstart', function (e) {
+    // Prevent synthetic mouse events that may follow the touch.
+    e.preventDefault();
+    handleOnClick(e);
+}, { passive: false });
 
 
 // -------------------------
