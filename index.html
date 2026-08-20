@@ -31,16 +31,29 @@
         from { width: 0; }
         to { width: 100%; }
       }
-  .typewriter {
-    display: inline-block;
-    overflow: hidden;
-    white-space: nowrap;
-    border-right: .15em solid #000;
-    animation: typing 2s steps(30, end) forwards;
-  }
-  .typewriter.finished {
-    border-right: none;
-  }
+      .typewriter {
+        display: inline-block;
+        overflow: hidden;
+        white-space: nowrap;
+        border-right: .15em solid #000;
+        animation: typing 2s steps(30, end) forwards;
+      }
+      .typewriter.finished {
+        border-right: none;
+      }
+      /* Hide the close button until the typewriter animation finishes.
+         The button appears after the .finished class is added to the
+         .typewriter element. We use the sibling selector to reveal the
+         button when the animation is done. */
+      .close-doc {
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s ease;
+      }
+      .typewriter.finished ~ .close-doc {
+        opacity: 1;
+        pointer-events: auto;
+      }
       /* Basic styling for the document content */
       /* Modern, professional document style */
       .doc {
