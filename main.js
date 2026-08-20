@@ -4,6 +4,88 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xFFFFFF);
 
+// -------------------------------------------------
+// Overlay handling for drawer documents
+// -------------------------------------------------
+// The HTML contains a hidden <div id="overlay"> that will host the
+// document content when a drawer is opened. We fetch the corresponding
+// HTML fragment (drawerX.html) and inject it into the overlay.
+// The overlay can be closed via a button inside each fragment.
+
+const overlay = document.getElementById('overlay');
+// Global close‑button handler (delegated). This works for any drawer document.
+overlay.addEventListener('click', (event) => {
+    if (!event.target.matches('.close-doc')) return;
+    event.stopPropagation();
+    hideOverlay();
+    if (cameraFocusDrawer) {
+        const state = drawerStates[cameraFocusDrawer.name];
+        if (state) state.open = false;
+        const anotherOpen = drawers.find(d => drawerStates[d.name].open);
+        cameraFocusDrawer = anotherOpen || null;
+    }
+});
+
+// Holds the name of a drawer whose document should appear once the drawer
+// animation reaches its open position.
+let pendingDocumentName = null;
+
+// Mapping from drawer object names (as defined in the GLTF model) to the
+// HTML file that holds the information to display.
+const drawerDocs = {
+    D1_8: 'drawer1.html',
+    D2_11: 'drawer2.html',
+    D3_13: 'drawer3.html'
+};
+
+/** Load a document fragment and show it in the overlay. */
+function showDrawerDocument(drawerName) {
+    const file = drawerDocs[drawerName];
+    if (!file) return;
+    fetch(file)
+        .then(res => res.text())
+        .then(html => {
+        overlay.innerHTML = html;
+        // Make the overlay a flex container and trigger CSS transition
+        overlay.style.display = 'flex';
+        requestAnimationFrame(() => {
+            overlay.classList.add('visible');
+        });
+        // When the typewriter animation finishes, remove the blinking cursor.
+        overlay.querySelectorAll('.typewriter').forEach(el => {
+            el.addEventListener('animationend', () => {
+                el.classList.add('finished');
+            }, { once: true });
+        });
+        // Attach close handler – the button inside the fragment has class "close-doc"
+        const closeBtn = overlay.querySelector('.close-doc');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                hideOverlay();
+                // Close the drawer associated with this document
+                const state = drawerStates[drawerName];
+                if (state) state.open = false;
+                // Update camera focus after closing
+                const anotherOpen = drawers.find(d => drawerStates[d.name].open);
+                cameraFocusDrawer = anotherOpen || null;
+            });
+        }
+        })
+        .catch(err => console.error('Failed to load drawer document', err));
+}
+
+/** Hide the overlay and clear its contents. */
+function hideOverlay() {
+    // Hide with transition – remove the class first then after the transition
+    // finishes reset display and content.
+    overlay.classList.remove('visible');
+    // Wait for the CSS transition duration (0.4s) before fully hiding.
+    setTimeout(() => {
+        overlay.style.display = 'none';
+        overlay.innerHTML = '';
+    }, 400);
+}
+
 const camera = new THREE.PerspectiveCamera(
     30,
     window.innerWidth / window.innerHeight,
@@ -100,18 +182,16 @@ function handleOnClick(event) {
     state.open = !state.open;
 
     if (state.open) {
-
-        // Open this drawer
+        // Open this drawer – defer showing the document until the drawer finishes opening
         cameraFocusDrawer = drawer;
-
+        pendingDocumentName = drawer.name;
     } else {
-
-        // Close drawer
+        // Close drawer: hide overlay (if any) and possibly focus another open drawer
+        hideOverlay();
         const anotherOpenDrawer = drawers.find(
-        d => drawerStates[d.name].open
-    );
-
-    cameraFocusDrawer = anotherOpenDrawer || null;
+            d => drawerStates[d.name].open
+        );
+        cameraFocusDrawer = anotherOpenDrawer || null;
     }
 }
 
@@ -176,18 +256,15 @@ function animate() {
     // -------------------------
 
     drawers.forEach((drawer) => {
-
         const state = drawerStates[drawer.name];
-
-        const targetX = state.open
-            ? state.openX
-            : state.closedX;
-
-        drawer.position.x = THREE.MathUtils.lerp(
-            drawer.position.x,
-            targetX,
-            0.08
-        );
+        const targetX = state.open ? state.openX : state.closedX;
+        drawer.position.x = THREE.MathUtils.lerp(drawer.position.x, targetX, 0.08);
+        // If a document is pending for this drawer and the drawer is essentially open,
+        // trigger the document display. The 0.02 tolerance works with the current lerp speed.
+        if (pendingDocumentName === drawer.name && Math.abs(drawer.position.x - state.openX) < 0.02) {
+            showDrawerDocument(drawer.name);
+            pendingDocumentName = null;
+        }
     });
 
 
