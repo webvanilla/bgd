@@ -329,10 +329,12 @@ renderer.setAnimationLoop(animate);
 // Events
 // -------------------------
 
-// Support both mouse clicks and touch taps for drawer interaction.
-window.addEventListener('click', handleOnClick);
-window.addEventListener('touchstart', function (e) {
-    // Prevent synthetic mouse events that may follow the touch.
+// Use a unified pointer event that works for mouse, touch, and pen inputs.
+// Additionally listen for the legacy touchend event on older browsers.
+window.addEventListener('pointerdown', handleOnClick);
+window.addEventListener('touchend', function (e) {
+    // Touch events may fire after a pointerdown, but we add this for
+    // compatibility with browsers that don't fully support Pointer Events.
     e.preventDefault();
     handleOnClick(e);
 }, { passive: false });
