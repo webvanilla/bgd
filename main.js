@@ -131,12 +131,10 @@ function attachDangerListener() {
     const dangerBtn = document.getElementById('dangerBtn');
     if (dangerBtn) {
         dangerBtn.addEventListener('click', startDanger);
-        console.log('Danger button listener attached');
     }
     const returnBtn = document.getElementById('returnBtn');
     if (returnBtn) {
         returnBtn.addEventListener('click', startReturn);
-        console.log('Return button listener attached');
     }
 }
 
@@ -147,9 +145,7 @@ function attachButtonListeners() {
 
 /** Start the cabinet "danger" animation. */
 function startDanger() {
-    console.log('Danger button clicked');
     if (dangerMode || !cabinetModel) {
-        console.log('Danger not started: mode=', dangerMode, ' cabinetModel=', cabinetModel);
         return;
     }
     // Reset cabinet to its original position and orientation before starting a new danger run
@@ -168,12 +164,10 @@ function startDanger() {
     if (returnBtn) returnBtn.style.display = 'block';
     dangerMode = true;
     dangerStart = performance.now();
-    console.log('Danger started at', cabinetStartX, cabinetStartY);
 }
 
 /** Start the return‑to‑safety animation. */
 function startReturn() {
-    console.log('Return button clicked');
     if (!cabinetModel) return;
     // Stop any ongoing danger animation
     dangerMode = false;
@@ -318,6 +312,11 @@ loader.load(
         cabinetOriginalPos.copy(model.position);
         // Now that the model is present in the scene, attach the button listeners
         attachButtonListeners();
+        // Hide the skeleton loader – the model is ready
+        const loaderEl = document.getElementById('skeletonLoader');
+        if (loaderEl) {
+          loaderEl.style.display = 'none';
+        }
     },
 
     undefined,
