@@ -5,6 +5,22 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xFFFFFF);
 
 // -------------------------------------------------
+// Global state for the "danger" animation
+// -------------------------------------------------
+let cabinetModel = null; // will hold the GLTF root once loaded
+let dangerMode = false;
+let dangerStart = 0;
+const dangerDuration = 3000; // ms the cabinet flies across the screen
+let cabinetStartX = 0;
+let cabinetStartY = 0;
+let cabinetTargetX = 0;
+let returnMode = false;
+let returnStart = 0;
+let cabinetOriginalRotationY = 0;
+let cabinetTargetRotationY = 0; // target rotation during danger (randomized)
+let cabinetOriginalPos = new THREE.Vector3(); // store the initial position of the cabinet
+
+// -------------------------------------------------
 // Overlay handling for drawer documents
 // -------------------------------------------------
 // The HTML contains a hidden <div id="overlay"> that will host the
@@ -106,6 +122,67 @@ const renderer = new THREE.WebGLRenderer({
 
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
+
+// -------------------------------------------------
+// Danger & Return button handling
+// -------------------------------------------------
+/** Attach click listeners for danger and return buttons once the cabinet model is loaded. */
+function attachDangerListener() {
+    const dangerBtn = document.getElementById('dangerBtn');
+    if (dangerBtn) {
+        dangerBtn.addEventListener('click', startDanger);
+        console.log('Danger button listener attached');
+    }
+    const returnBtn = document.getElementById('returnBtn');
+    if (returnBtn) {
+        returnBtn.addEventListener('click', startReturn);
+        console.log('Return button listener attached');
+    }
+}
+
+/** Compatibility alias – some older code may call this name. */
+function attachButtonListeners() {
+    attachDangerListener();
+}
+
+/** Start the cabinet "danger" animation. */
+function startDanger() {
+    console.log('Danger button clicked');
+    if (dangerMode || !cabinetModel) {
+        console.log('Danger not started: mode=', dangerMode, ' cabinetModel=', cabinetModel);
+        return;
+    }
+    // Reset cabinet to its original position and orientation before starting a new danger run
+    cabinetModel.position.copy(cabinetOriginalPos);
+    cabinetModel.rotation.y = cabinetOriginalRotationY;
+    // Record the starting X/Y positions (now equal to original)
+    cabinetStartX = cabinetOriginalPos.x;
+    cabinetStartY = cabinetOriginalPos.y;
+    // Determine a random target rotation between 220° and 360° for this run
+    const minDeg = 220;
+    const maxDeg = 360;
+    const randomDeg = Math.random() * (maxDeg - minDeg) + minDeg;
+    cabinetTargetRotationY = cabinetOriginalRotationY + THREE.MathUtils.degToRad(randomDeg);
+    // Show the return button for the user to restore safety later
+    const returnBtn = document.getElementById('returnBtn');
+    if (returnBtn) returnBtn.style.display = 'block';
+    dangerMode = true;
+    dangerStart = performance.now();
+    console.log('Danger started at', cabinetStartX, cabinetStartY);
+}
+
+/** Start the return‑to‑safety animation. */
+function startReturn() {
+    console.log('Return button clicked');
+    if (!cabinetModel) return;
+    // Stop any ongoing danger animation
+    dangerMode = false;
+    // Reset any shake rotation
+    cabinetModel.rotation.z = 0;
+    cabinetModel.rotation.y = 0;
+    returnMode = true;
+    returnStart = performance.now();
+}
 
 
 // -------------------------
@@ -235,6 +312,12 @@ loader.load(
         });
 
         scene.add(model);
+        // Store reference for danger animation and remember its original orientation and position
+        cabinetModel = model;
+        cabinetOriginalRotationY = model.rotation.y;
+        cabinetOriginalPos.copy(model.position);
+        // Now that the model is present in the scene, attach the button listeners
+        attachButtonListeners();
     },
 
     undefined,
@@ -318,6 +401,49 @@ function animate() {
         camera.lookAt(cameraTarget);
     }
 
+
+    // -------------------------
+    // Danger (cabinet flying) animation
+    // -------------------------
+    // Danger (cabinet moving) animation – keep cabinet visible, oscillate in X and Y
+    if (dangerMode && cabinetModel) {
+        const elapsed = performance.now() - dangerStart;
+        const progress = Math.min(elapsed / dangerDuration, 1);
+        if (progress < 1) {
+            const t = elapsed * 0.001; // seconds for sinusoidal motion
+            // Horizontal sinusoidal motion around start X
+            cabinetModel.position.x = cabinetStartX + Math.sin(t * 2) * 2; // ±2 units
+            // Vertical sinusoidal motion around start Y
+            cabinetModel.position.y = cabinetStartY + Math.sin(t * 3) * 1; // ±1 unit
+            // Gentle shake rotation on Z axis
+            cabinetModel.rotation.z = Math.sin(t * 5) * 0.08;
+            // Spin around Y axis to a random target rotation between 220° and 360°
+            cabinetModel.rotation.y = cabinetOriginalRotationY + progress * (cabinetTargetRotationY - cabinetOriginalRotationY);
+        } else {
+            // End of danger animation – keep the cabinet at the random final rotation
+            dangerMode = false;
+            cabinetModel.rotation.z = 0;
+            cabinetModel.rotation.y = cabinetTargetRotationY;
+        }
+    }
+
+    // Return to safety – smoothly move cabinet back to its original start position
+    if (returnMode && cabinetModel) {
+        const elapsed = performance.now() - returnStart;
+        // Lerp position and rotation back over 1 second for a smooth reset
+        const t = Math.min(elapsed / 1000, 1);
+        cabinetModel.position.x = THREE.MathUtils.lerp(cabinetModel.position.x, cabinetStartX, t);
+        cabinetModel.position.y = THREE.MathUtils.lerp(cabinetModel.position.y, cabinetStartY, t);
+        cabinetModel.rotation.y = THREE.MathUtils.lerp(cabinetModel.rotation.y, cabinetOriginalRotationY, t);
+        if (t >= 1) {
+            returnMode = false;
+            // Ensure final exact values
+            cabinetModel.rotation.y = cabinetOriginalRotationY;
+            // Hide the return button once back to safety
+            const returnBtn = document.getElementById('returnBtn');
+            if (returnBtn) returnBtn.style.display = 'none';
+        }
+    }
 
     renderer.render(scene, camera);
 }
